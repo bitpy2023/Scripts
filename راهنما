@@ -1,0 +1,11 @@
+
+## راهنمای نصب و استفاده
+
+1. ابتدا مخزن خود را آپدیت کنید:
+```bash
+git clone https://github.com/bitpy2023/Scripts.git
+cd Scripts
+
+اسکریپت را اجرا کنید 
+chmod +x kalifix.sh
+sudo ./kalifix.sh
