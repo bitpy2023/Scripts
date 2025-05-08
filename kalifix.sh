@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # ==============================================
-# Kali Repository Fixer v2.0
+# Kali Repository Fixer v2.1 (Enhanced)
 # Created by: bitpy2023
 # GitHub: https://github.com/bitpy2023/Scripts
+# Last Updated: 2025-05-08
 # ==============================================
 
 # Colors
@@ -13,102 +14,81 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Check root
-if [ "$(id -u)" -ne 0 ]; then
-  echo -e "${RED}[!] Error: This script must be run as root!${NC}"
-  echo -e "${YELLOW}Try: sudo ./kalifix.sh${NC}"
-  exit 1
-fi
+# Initialize
+ARCH=""
+PROXY=""
+trap 'cleanup_on_exit' EXIT INT TERM
 
-# Banner
-echo -e "${BLUE}"
-cat << "EOF"
-  _  __ _   _ _  __       _  ___  _ __ 
- | |/ /| | | | |/ /      | |/ _ \| '__|
- |   < | |_| |   <       | | (_) | |   
- |_|\_\\ \__,_|_|\_\      |_|\___/|_|   
+# Functions
+cleanup_on_exit() {
+  chattr -i /etc/resolv.conf 2>/dev/null
+  echo -e "\n${BLUE}[i] Cleanup completed. Safe to exit.${NC}"
+}
+
+log() {
+  echo -e "${YELLOW}[*] $1${NC}"
+}
+
+show_help() {
+  cat <<EOF
+Usage: ./kalifix.sh [OPTION]
+Options:
+  -n, --normal      Apply normal fix (recommended)
+  -a, --aggressive  Apply aggressive fix (for restricted regions)
+  -t, --test        Test connection only
+  -h, --help        Show this help message
 EOF
-echo -e "${NC}"
-echo -e "${GREEN}Kali Linux Repository Auto-Fixer v2.0${NC}"
-echo -e "Contributed by: bitpy2023"
-echo -e "GitHub: https://github.com/bitpy2023/Scripts"
-echo "----------------------------------------"
+}
 
-# Main menu
-show_menu() {
-  echo -e "\n${YELLOW}[?] Select an option:${NC}"
-  echo -e "1) Normal Fix (Recommended for most users)"
-  echo -e "2) Aggressive Fix (For restricted countries)"
-  echo -e "3) Custom DNS Setup"
-  echo -e "4) Test Connection"
-  echo -e "5) Exit"
-  read -p "Your choice [1-5]: " choice
-  case $choice in
-    1) normal_fix ;;
-    2) aggressive_fix ;;
-    3) custom_dns ;;
-    4) test_connection ;;
-    5) exit 0 ;;
-    *) echo -e "${RED}[!] Invalid option!${NC}"; show_menu ;;
+check_root() {
+  if [ "$(id -u)" -ne 0 ]; then
+    echo -e "${RED}[!] Error: This script must be run as root!${NC}"
+    echo -e "${YELLOW}Try: sudo ./kalifix.sh${NC}"
+    exit 1
+  fi
+}
+
+check_architecture() {
+  case $(uname -m) in
+    x86_64) ARCH="amd64" ;;
+    aarch64) ARCH="arm64" ;;
+    *) echo -e "${RED}[!] Unsupported architecture${NC}"; exit 1 ;;
   esac
+  log "Detected architecture: $ARCH"
 }
 
-# Normal fix
-normal_fix() {
-  echo -e "\n${YELLOW}[*] Applying normal fix...${NC}"
-  backup_configs
-  setup_dns "1.1.1.1 8.8.8.8 9.9.9.9"
-  setup_repositories "normal"
-  install_requirements
-  optimize_network
-  cleanup
-  echo -e "\n${GREEN}[✓] Normal fix applied successfully!${NC}"
-}
-
-# Aggressive fix
-aggressive_fix() {
-  echo -e "\n${YELLOW}[*] Applying aggressive fix...${NC}"
-  backup_configs
-  setup_dns "1.1.1.1 8.8.8.8 9.9.9.9 208.67.222.222"
-  setup_repositories "aggressive"
-  install_requirements
-  optimize_network
-  setup_proxy_check
-  cleanup
-  echo -e "\n${GREEN}[✓] Aggressive fix applied successfully!${NC}"
-}
-
-# Custom DNS
-custom_dns() {
-  echo -e "\n${YELLOW}[?] Enter custom DNS servers (space separated):${NC}"
-  read -p "DNS Servers: " custom_dns
-  setup_dns "$custom_dns"
-  echo -e "\n${GREEN}[✓] Custom DNS configured!${NC}"
-}
-
-# Backup configs
 backup_configs() {
-  echo -e "${YELLOW}[*] Backing up current configurations...${NC}"
-  cp /etc/apt/sources.list /etc/apt/sources.list.bak 2>/dev/null
+  [ ! -f /etc/apt/sources.list ] && { echo -e "${RED}[!] sources.list not found!${NC}"; exit 1; }
+  
+  log "Backing up current configurations..."
+  cp /etc/apt/sources.list /etc/apt/sources.list.bak 2>/dev/null || {
+    echo -e "${RED}[!] Failed to backup sources.list${NC}"; exit 1
+  }
   cp /etc/resolv.conf /etc/resolv.conf.bak 2>/dev/null
 }
 
-# Setup DNS
 setup_dns() {
-  echo -e "${YELLOW}[*] Configuring DNS servers...${NC}"
-  > /etc/resolv.conf
-  for dns in $1; do
-    echo "nameserver $dns" >> /etc/resolv.conf
-  done
-  chattr +i /etc/resolv.conf 2>/dev/null
+  local dns_servers=($1)
+  local conf_file="/etc/resolv.conf"
+  
+  [ ${#dns_servers[@]} -eq 0 ] && { echo -e "${RED}[!] No DNS servers provided${NC}"; return 1; }
+  
+  log "Configuring DNS servers..."
+  printf "nameserver %s\n" "${dns_servers[@]}" > "$conf_file" || {
+    echo -e "${RED}[!] Failed to write DNS config${NC}"; return 1
+  }
+  chattr +i "$conf_file" 2>/dev/null
 }
 
-# Setup repositories
 setup_repositories() {
-  echo -e "${YELLOW}[*] Configuring repositories...${NC}"
-  > /etc/apt/sources.list
+  local mode=$1
+  log "Configuring $mode repositories..."
   
-  if [ "$1" == "normal" ]; then
+  > /etc/apt/sources.list || {
+    echo -e "${RED}[!] Failed to clear sources.list${NC}"; return 1
+  }
+
+  if [ "$mode" == "normal" ]; then
     cat >> /etc/apt/sources.list <<EOL
 deb http://http.kali.org/kali kali-rolling main contrib non-free
 deb http://ftp.acc.umu.se/mirror/kali.org/kali kali-rolling main contrib non-free
@@ -122,16 +102,18 @@ EOL
   fi
 }
 
-# Install requirements
 install_requirements() {
-  echo -e "${YELLOW}[*] Installing required packages...${NC}"
-  apt-get update --allow-insecure-repositories -qq
-  apt-get install -y kali-archive-keyring debian-archive-keyring
+  log "Installing required packages..."
+  apt-get update --allow-insecure-repositories -qq || {
+    echo -e "${RED}[!] Failed to update packages${NC}"; return 1
+  }
+  apt-get install -y kali-archive-keyring debian-archive-keyring || {
+    echo -e "${RED}[!] Failed to install keyrings${NC}"; return 1
+  }
 }
 
-# Optimize network
 optimize_network() {
-  echo -e "${YELLOW}[*] Optimizing network settings...${NC}"
+  log "Optimizing network settings..."
   grep -q "net.core.default_qdisc=fq" /etc/sysctl.conf || \
     echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
   grep -q "net.ipv4.tcp_congestion_control=bbr" /etc/sysctl.conf || \
@@ -139,36 +121,93 @@ optimize_network() {
   sysctl -p >/dev/null 2>&1
 }
 
-# Setup proxy check
-setup_proxy_check() {
-  echo -e "${YELLOW}[*] Checking for proxy settings...${NC}"
-  if [ -n "$http_proxy" ]; then
-    echo -e "${BLUE}[i] Proxy detected: $http_proxy${NC}"
-    echo "Acquire::http::Proxy \"$http_proxy\";" > /etc/apt/apt.conf.d/99proxy
-  fi
-}
-
-# Test connection
 test_connection() {
-  echo -e "\n${YELLOW}[*] Testing connection to Kali repositories...${NC}"
-  echo -e "${BLUE}[i] Testing DNS resolution...${NC}"
-  nslookup http.kali.org
+  local test_urls=(
+    "http://http.kali.org"
+    "http://ftp.acc.umu.se"
+    "http://kali.download"
+  )
   
-  echo -e "\n${BLUE}[i] Testing HTTP connection...${NC}"
-  curl -I http://http.kali.org --connect-timeout 5
+  log "Testing connection to Kali repositories..."
+  for url in "${test_urls[@]}"; do
+    if curl -s --head "$url" | grep "200 OK"; then
+      echo -e "${GREEN}[✓] $url accessible${NC}"
+    else
+      echo -e "${RED}[!] $url unreachable${NC}"
+    fi
+  done
   
-  echo -e "\n${BLUE}[i] Testing repository access...${NC}"
-  apt-get update --dry-run
+  log "Testing DNS resolution..."
+  nslookup http.kali.org || echo -e "${RED}[!] DNS resolution failed${NC}"
 }
 
-# Cleanup
-cleanup() {
-  echo -e "${YELLOW}[*] Cleaning up...${NC}"
-  apt-get clean
-  apt-get update -qq
-  echo -e "\n${GREEN}[✓] Running final upgrade...${NC}"
-  apt-get upgrade -y
+normal_fix() {
+  log "Applying normal fix..."
+  backup_configs
+  setup_dns "1.1.1.1 8.8.8.8 9.9.9.9"
+  setup_repositories "normal"
+  install_requirements
+  optimize_network
+  echo -e "\n${GREEN}[✓] Normal fix applied successfully!${NC}"
+}
+
+aggressive_fix() {
+  log "Applying aggressive fix..."
+  backup_configs
+  setup_dns "1.1.1.1 8.8.8.8 9.9.9.9 208.67.222.222"
+  setup_repositories "aggressive"
+  install_requirements
+  optimize_network
+  echo -e "\n${GREEN}[✓] Aggressive fix applied successfully!${NC}"
+}
+
+show_banner() {
+  echo -e "${BLUE}"
+  cat << "EOF"
+  _  __ _   _ _  __       _  ___  _ __ 
+ | |/ /| | | | |/ /      | |/ _ \| '__|
+ |   < | |_| |   <       | | (_) | |   
+ |_|\_\\ \__,_|_|\_\      |_|\___/|_|   
+EOF
+  echo -e "${NC}"
+  echo -e "${GREEN}Kali Linux Repository Auto-Fixer v2.1${NC}"
+  echo -e "Contributed by: bitpy2023"
+  echo -e "Last Updated: 2025-05-08"
+  echo "----------------------------------------"
 }
 
 # Main execution
-show_menu
+check_root
+check_architecture
+show_banner
+
+# Process arguments
+while [ $# -gt 0 ]; do
+  case $1 in
+    -n|--normal) normal_fix; exit ;;
+    -a|--aggressive) aggressive_fix; exit ;;
+    -t|--test) test_connection; exit ;;
+    -h|--help) show_help; exit ;;
+    *) show_help; exit 1 ;;
+  esac
+  shift
+done
+
+# Interactive mode
+PS3="$(echo -e '\n')${YELLOW}[?] Select an option:${NC} "
+options=(
+  "Normal Fix (Recommended)"
+  "Aggressive Fix (Restricted regions)"
+  "Test Connection"
+  "Exit"
+)
+
+select opt in "${options[@]}"; do
+  case $REPLY in
+    1) normal_fix; break ;;
+    2) aggressive_fix; break ;;
+    3) test_connection; break ;;
+    4) exit 0 ;;
+    *) echo -e "${RED}[!] Invalid option!${NC}" ;;
+  esac
+done
