@@ -1,23 +1,43 @@
-# Scripts Collection by bitpy2023
+# ProxyMaster
 
-![Kali Linux](https://img.shields.io/badge/Kali_Linux-557C94?style=for-the-badge&logo=kali-linux&logoColor=white)
-![Shell Script](https://img.shields.io/badge/Shell_Script-121011?style=for-the-badge&logo=gnu-bash&logoColor=white)
+ابزار مدیریت پروکسی چندسکویی با قابلیت تست و فیلتر خودکار
 
-A collection of useful scripts for Kali Linux and other security tools.
+## 📦 نیازمندی‌ها
 
-## Featured Script: Kali Repository Fixer (kalifix.sh)
+- Python 3.7 یا بالاتر
+- کتابخانه‌های مورد نیاز (به صورت خودکار نصب می‌شوند):
 
-A powerful tool to fix Kali Linux repository issues, especially useful for users in restricted regions.
-
-### Features:
-- Automatic repository configuration
-- DNS optimization
-- Network tuning
-- Multiple fix modes (Normal/Aggressive)
-- Proxy detection
-- Connection testing
-
-### Usage:
 ```bash
-chmod +x kalifix.sh
-sudo ./kalifix.sh
+pip install -r requirements.txt
+```
+
+## 🚀 راه‌اندازی سریع
+
+1. کد را دانلود کنید:
+```bash
+git clone https://github.com/username/ProxyMaster.git
+cd ProxyMaster
+```
+
+2. وابستگی‌ها را نصب کنید:
+```bash
+pip install -r requirements.txt
+```
+
+3. اجرای برنامه:
+```bash
+python src/proxymaster.py
+```
+
+## ✨ ویژگی‌ها
+
+- جمع‌آوری خودکار پروکسی از منابع مختلف
+- تست سرعت و کیفیت پروکسی‌ها
+- پشتیبانی از Tor
+- نمایش اطلاعات شبکه
+- خروجی در قالب JSON، TXT و CSV
+
+## ⚠️ نکات مهم
+
+- برای استفاده از برخی منابع پروکسی نیاز به اجرای Tor دارید
+- در سیستم‌های لینوکس/macOS ممکن است نیاز به دسترسی sudo داشته باشید
