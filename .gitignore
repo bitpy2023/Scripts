@@ -1,15 +1,28 @@
-# فایل‌های پایتون
+# Byte-compiled / optimized files
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
 
-# فایل‌های محیط مجازی
+# Virtual environments
+.venv/
 venv/
-.env/
+env/
+ENV/
 
-# فایل‌های اجرایی
-*.exe
-
-# فایل‌های تولیدی برنامه
+# ProxyMaster generated results
 proxy_results/
 *.log
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Tooling
+.pytest_cache/
+.mypy_cache/
+.idea/
+.vscode/
+.DS_Store

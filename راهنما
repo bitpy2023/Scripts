@@ -1,11 +1,39 @@
+## راهنمای نصب و استفاده (فارسی)
 
-## راهنمای نصب و استفاده
+### ۱) ProxyMaster — جمع‌آوری و تست پروکسی
 
-1. ابتدا مخزن خود را آپدیت کنید:
+نصب نیازمندی‌ها:
+
 ```bash
 git clone https://github.com/bitpy2023/Scripts.git
 cd Scripts
+python -m venv .venv
+source .venv/bin/activate        # ویندوز: .venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-اسکریپت را اجرا کنید 
-chmod +x kalifix.sh
-sudo ./kalifix.sh
+اجرا (منوی تعاملی):
+
+```bash
+python src/proxymaster.py
+```
+
+اجرا بدون منو (خط‌فرمان، مناسب اتوماسیون):
+
+```bash
+# دریافت و تست ۳۰۰ پروکسی و خروجی JSON
+python src/proxymaster.py --fetch --test --limit 300 --export json
+# نمایش همه‌ی گزینه‌ها
+python src/proxymaster.py --help
+```
+
+خروجی‌ها در پوشه‌ی `proxy_results/` ساخته می‌شوند.
+
+### ۲) kalifix — رفع مخزن و DNS کالی لینوکس
+
+```bash
+chmod +x tools/kalifix.sh
+sudo tools/kalifix.sh --test        # فقط تست اتصال مخزن‌ها و DNS
+sudo tools/kalifix.sh --normal      # رفع عادی (پیشنهادی)
+sudo tools/kalifix.sh --aggressive  # آینه‌های جایگزین برای مناطق محدود
+```
